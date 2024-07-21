@@ -22,10 +22,10 @@ type Logger interface {
 }
 
 type App interface {
-	Set(key string, value []byte) bool
-	Get(key string) ([]byte, bool)
+	Set(key string, value interface{}) bool
+	Get(key string) (interface{}, bool)
 	Clear()
-	Fill(byteImg []byte, length int, width int) ([]byte, error)
+	Fill(byteImg []byte, paramsStr string) ([]byte, error)
 	ProxyRequest(url string, headers http.Header) ([]byte, int, error)
 }
 

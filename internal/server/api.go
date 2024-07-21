@@ -1,11 +1,9 @@
 package server
 
 import (
-	"fmt"
-	"log"
 	"net/http"
 	"net/url"
-	"strconv"
+	"os"
 	"strings"
 )
 
@@ -31,52 +29,33 @@ func (a *api) fill(w http.ResponseWriter, r *http.Request) {
 	paramsStr, err := url.Parse(urlString)
 	if err != nil {
 		a.logger.Error(err.Error())
-		return
+		ErrorJSON(w, r, http.StatusBadRequest, err, "not correct path")
 	}
 
-	width, height, targetURL, fileName, err := parseUrlParams(paramsStr.Path)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	cacheData, ok := a.app.Get(fileName)
+	cachePath, ok := a.app.Get(paramsStr.Path)
 	if ok {
+		filePath := "../storage/" + cachePath.(string)
+		fileFromDisc, err := os.ReadFile(filePath)
+		if err != nil {
+			a.logger.Error(err.Error())
+		}
 		a.logger.Info("image get from cache")
-		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "image/jpeg")
-		w.Write(cacheData)
-		return
+		responseImage(w, r, http.StatusOK, fileFromDisc)
 	} else {
+		targetURL := parseTargetUrl(paramsStr.Path)
 		externalData, httpStatus, err := a.app.ProxyRequest(targetURL, r.Header)
 		if err != nil {
 			ErrorJSON(w, r, httpStatus, err, "fail proxy request")
 		}
-
-		response, err := a.app.Fill(externalData, width, height)
+		response, err := a.app.Fill(externalData, paramsStr.Path)
 		if err != nil {
 			a.logger.Error(err.Error())
 		}
-		w.WriteHeader(http.StatusOK)
-		w.Header().Set("Content-Type", "image/jpeg")
-		w.Write(response)
+		responseImage(w, r, http.StatusOK, response)
 	}
 }
 
-func parseUrlParams(paramsStr string) (width, height int, targetURL, fileName string, err error) {
+func parseTargetUrl(paramsStr string) string {
 	splitParams := strings.Split(paramsStr, "/")
-	width, err = strconv.Atoi(splitParams[1])
-	if err != nil {
-		return 0, 0, "", "", fmt.Errorf("wrong width data: %s", err)
-	}
-	height, err = strconv.Atoi(splitParams[2])
-	if err != nil {
-		return 0, 0, "", "", fmt.Errorf("wrong height data: %s", err)
-	}
-
-	targetURL = strings.Join(splitParams[:2], "/")
-	sLen := len(splitParams) - 1
-
-	fileName = splitParams[1] + "_" + splitParams[2] + "_" + splitParams[sLen]
-
-	return width, height, targetURL, fileName, nil
+	return strings.Join(splitParams[:2], "/")
 }
