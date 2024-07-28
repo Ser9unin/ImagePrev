@@ -13,12 +13,8 @@ test:
 	go test -race -count 100 ./internal/...
 
 integration-tests:
-	set -e ;\
-	docker-compose -f deploy/docker-compose-test.yaml -p integration_test up --build -d ;\
-	test_status_code=0 ;\
-	docker-compose -f deploy/docker-compose-test.yaml run integration_test || test_status_code=$$? ;\
-	docker-compose -f deploy/docker-compose-test.yaml down ;\
-	exit $$test_status_code ;
+	docker-compose -f ./docker/docker-compose-tests.yaml up --build --force-recreate --abort-on-container-exit --exit-code-from tests && \
+	docker-compose -f ./docker/docker-compose-tests.yaml down
 
 install-lint-deps:
 	(which golangci-lint > /dev/null) || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin v1.59.1
