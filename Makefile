@@ -10,6 +10,7 @@ down:
 	docker compose -f deploy/docker-compose.yaml down
 
 test:
+	pwd
 	go test -race -count 10 ./internal/...
 
 integration-tests:
