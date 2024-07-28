@@ -8,14 +8,14 @@ import (
 	"net/http"
 )
 
-// responseImage отправляет клиенту изображение в []byte
+// responseImage отправляет клиенту изображение в []byte.
 func responseImage(w http.ResponseWriter, _ *http.Request, status int, data []byte) {
 	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Write(data)
 }
 
-// responseJSON отправляет ответ в формате json
+// responseJSON отправляет ответ в формате json.
 func responseJSON(w http.ResponseWriter, _ *http.Request, status int, v interface{}) {
 	buf := &bytes.Buffer{}
 	enc := json.NewEncoder(buf)
@@ -35,16 +35,16 @@ func responseJSON(w http.ResponseWriter, _ *http.Request, status int, v interfac
 	}
 }
 
-// JSONMap is a map alias
+// JSONMap is a map alias.
 type JSONMap map[string]interface{}
 
-// ErrorJSON отправляет ошибку в формате json
+// ErrorJSON отправляет ошибку в формате json.
 func ErrorJSON(w http.ResponseWriter, r *http.Request, httpStatusCode int, err error, details string) {
 	responseJSON(w, r, httpStatusCode, JSONMap{"error": err.Error(), "details": details})
 }
 
 // NoContent отправляет ответ что контента нет
-func NoContent(w http.ResponseWriter, r *http.Request) {
+func NoContent(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 

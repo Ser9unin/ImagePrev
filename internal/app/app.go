@@ -3,6 +3,7 @@ package app
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"image/jpeg"
 	"io"
@@ -217,17 +218,26 @@ func (app *App) FetchExternalData(targetReq *http.Request) ([]byte, int, error) 
 	client := &http.Client{Transport: transport}
 
 	targetResp, err := client.Do(targetReq)
+	defer func() {
+		if err := targetResp.Body.Close(); err != nil {
+			return
+		}
+	}()
 	if err != nil {
 		app.logger.Error(err.Error())
 		app.logger.Info(targetReq.RequestURI)
 		targetReq.URL.Scheme = "http"
 		targetResp, err = client.Do(targetReq)
+		defer func() {
+			if err := targetResp.Body.Close(); err != nil {
+				return
+			}
+		}()
 		if err != nil {
 			app.logger.Error(fmt.Sprintf("Status %d, %s", http.StatusBadGateway, err.Error()))
 			return nil, http.StatusBadGateway, fmt.Errorf("error sending request")
 		}
 	}
-	defer targetResp.Body.Close()
 
 	// Проверяем, что внешний сервис не ответил 404
 	if targetResp.StatusCode == http.StatusNotFound {
@@ -236,21 +246,19 @@ func (app *App) FetchExternalData(targetReq *http.Request) ([]byte, int, error) 
 
 	// Проверяем, что внешний сервис отправляет jpeg, если да, то читаем его через буфер.
 	contentType := targetResp.Header.Get("Content-Type")
-
-	if strings.HasPrefix(contentType, "image/jpeg") {
-		app.logger.Info("JPEG image receiving")
-
-		// скачиваем ответ через буфер, что бы не получить слишком большой файл
-		//  и прекратить чтение при превышении лимита 100 мегабайт
-		result, status, err := app.responseBufferReader(targetResp.Body)
-		if err != nil {
-			return nil, status, err
-		}
-		app.logger.Info("JPEG image received")
-		return result, http.StatusOK, nil
-	} else {
+	if !strings.HasPrefix(contentType, "image/jpeg") {
 		return nil, http.StatusUnsupportedMediaType, fmt.Errorf("not a JPEG image")
 	}
+	app.logger.Info("JPEG image receiving")
+
+	// скачиваем ответ через буфер, что бы не получить слишком большой файл
+	//  и прекратить чтение при превышении лимита 100 мегабайт
+	result, status, err := app.responseBufferReader(targetResp.Body)
+	if err != nil {
+		return nil, status, err
+	}
+	app.logger.Info("JPEG image received")
+	return result, http.StatusOK, nil
 }
 
 // responseBufferReader читает файл из источника по 1 килобайту,
@@ -268,7 +276,7 @@ func (app *App) responseBufferReader(targetBody io.ReadCloser) ([]byte, int, err
 
 	bytesRead, err := io.CopyN(buffer, reader, 104857600)
 
-	if err == io.EOF {
+	if errors.Is(err, io.EOF) {
 		result = buffer.Bytes()
 		app.logger.Info(fmt.Sprintf("Received %d bytes", len(result)))
 	} else if err != nil {
