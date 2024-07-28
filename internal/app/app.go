@@ -3,6 +3,7 @@ package app
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"image/jpeg"
@@ -139,42 +140,10 @@ func fileStorage(bytesResponse bytes.Buffer, filename string) error {
 	}
 
 	filePath := storagePath + filename
-	// проверяем есть ли файл с таким названием на диске
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		// если такого файла нет, создаём новый
-		err = saveFileOnDisk(bytesResponse.Bytes(), filePath)
-		if err != nil {
-			return err
-		}
-	} else {
-		// если есть файл с таким названием, то сравниваем байты файла на диске с байтами,
-		// которые у нас получились после изменения размера изображения.
-		file, err := os.Open(filePath)
-		if err != nil {
-			return err
-		}
 
-		// если файл не удалось прочитать, пробуем его перезаписать.
-		fileBytes, err := io.ReadAll(file)
-		if err != nil {
-			err = saveFileOnDisk(bytesResponse.Bytes(), filePath)
-			if err != nil {
-				return err
-			}
-		}
-
-		ok := bytes.Equal(fileBytes, bytesResponse.Bytes())
-		if !ok {
-			// если байты не совпадают, перезаписываем файл
-			log.Println("file on disk different from external source")
-			err = saveFileOnDisk(bytesResponse.Bytes(), filePath)
-			if err != nil {
-				return err
-			}
-		} else {
-			// если байты совпадают, закрываем файл
-			file.Close()
-		}
+	err = saveFileOnDisk(bytesResponse.Bytes(), filePath)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -197,9 +166,9 @@ func saveFileOnDisk(fileBytes []byte, filename string) error {
 // ProxyRequest проксирует header исходного запроса к источнику откуда будет скачиваться изображение.
 func (app *App) ProxyHeader(targetURL string, initHeader http.Header) (*http.Request, int, error) {
 	// Создаем новый запрос к целевому сервису
-	targetUrlhttps := "https://" + targetURL
-	targetReq, err := http.NewRequest(http.MethodGet, targetUrlhttps, nil)
-	app.logger.Info(targetUrlhttps)
+	targetURLhttps := "https://" + targetURL
+	targetReq, err := http.NewRequestWithContext(context.Background(), http.MethodGet, targetURLhttps, nil)
+	app.logger.Info(targetURLhttps)
 	if err != nil {
 		return nil, http.StatusInternalServerError, fmt.Errorf("error creating request: %w", err)
 	}
