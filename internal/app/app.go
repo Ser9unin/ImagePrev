@@ -191,26 +191,26 @@ func (app *App) FetchExternalData(targetReq *http.Request) ([]byte, int, error) 
 	client := &http.Client{Transport: transport}
 
 	targetResp, err := client.Do(targetReq)
-	defer func() {
-		if err := targetResp.Body.Close(); err != nil {
-			return
-		}
-	}()
 	if err != nil {
 		app.logger.Error(err.Error())
 		app.logger.Info(targetReq.RequestURI)
 		targetReq.URL.Scheme = "http"
 		targetResp, err = client.Do(targetReq)
+		if err != nil {
+			app.logger.Error(fmt.Sprintf("Status %d, %s", http.StatusBadGateway, err.Error()))
+			return nil, http.StatusBadGateway, fmt.Errorf("error sending request")
+		}
 		defer func() {
 			if err := targetResp.Body.Close(); err != nil {
 				return
 			}
 		}()
-		if err != nil {
-			app.logger.Error(fmt.Sprintf("Status %d, %s", http.StatusBadGateway, err.Error()))
-			return nil, http.StatusBadGateway, fmt.Errorf("error sending request")
-		}
 	}
+	defer func() {
+		if err := targetResp.Body.Close(); err != nil {
+			return
+		}
+	}()
 
 	// Проверяем, что внешний сервис не ответил 404
 	if targetResp.StatusCode == http.StatusNotFound {
