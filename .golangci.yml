@@ -5,6 +5,16 @@ linters-settings:
   funlen:
     lines: 150
     statements: 80
+  depguard:
+   rules:
+    main:
+     allow:
+      - github.com/stretchr/testify/suite
+      - github.com/Ser9unin/ImagePrev/internal/app
+      - github.com/Ser9unin/ImagePrev/internal/cache
+      - github.com/Ser9unin/ImagePrev/internal/config
+      - github.com/Ser9unin/ImagePrev/internal/logger
+      - github.com/Ser9unin/ImagePrev/internal/server
 
 linters:
   disable-all: true
