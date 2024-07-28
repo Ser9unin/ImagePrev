@@ -139,21 +139,26 @@ func fileStorage(bytesResponse bytes.Buffer, filename string) error {
 		}
 		log.Println("Папка создана успешно")
 	}
+
+	filePath := storagePath + filename
 	// проверяем есть ли файл с таким названием на диске
-	file, err := os.Open(storagePath + filename)
-	if err != nil {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		// если такого файла нет, создаём новый
-		err = saveFileOnDisk(bytesResponse.Bytes(), filename)
+		err = saveFileOnDisk(bytesResponse.Bytes(), filePath)
 		if err != nil {
 			return err
 		}
 	} else {
 		// если есть файл с таким названием, то сравниваем байты файла на диске с байтами,
-		// которые у нас получились после изменения размера изображения
-		fileBytes, err := io.ReadAll(file)
-		// если файл не удалось прочитать, пробуем его перезаписать
+		// которые у нас получились после изменения размера изображения.
+		file, err := os.Open(filePath)
 		if err != nil {
-			err = saveFileOnDisk(bytesResponse.Bytes(), filename)
+			return err
+		}
+		// если файл не удалось прочитать, пробуем его перезаписать.
+		fileBytes, err := io.ReadAll(file)
+		if err != nil {
+			err = saveFileOnDisk(bytesResponse.Bytes(), filePath)
 			if err != nil {
 				return err
 			}
@@ -163,7 +168,7 @@ func fileStorage(bytesResponse bytes.Buffer, filename string) error {
 		if !ok {
 			// если байты не совпадают, перезаписываем файл
 			log.Println("file on disk different from external source")
-			err = saveFileOnDisk(bytesResponse.Bytes(), filename)
+			err = saveFileOnDisk(bytesResponse.Bytes(), filePath)
 			if err != nil {
 				return err
 			}
@@ -176,7 +181,7 @@ func fileStorage(bytesResponse bytes.Buffer, filename string) error {
 }
 
 func saveFileOnDisk(fileBytes []byte, filename string) error {
-	file, err := os.Create(storagePath + filename)
+	file, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("can't create file: %w", err)
 	}
