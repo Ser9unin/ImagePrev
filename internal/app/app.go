@@ -129,9 +129,7 @@ func parseParams(paramsStr string) (width, height int, fileName string, err erro
 
 func fileStorage(bytesResponse bytes.Buffer, filename string) error {
 	_, err := os.Stat(storagePath)
-	if err == nil {
-		log.Println("Папка уже существует")
-	} else if os.IsNotExist(err) {
+	if os.IsNotExist(err) {
 		log.Println("Папки не существует, создаём...")
 		err := os.Mkdir(storagePath, os.ModePerm)
 		if err != nil {
@@ -155,6 +153,7 @@ func fileStorage(bytesResponse bytes.Buffer, filename string) error {
 		if err != nil {
 			return err
 		}
+
 		// если файл не удалось прочитать, пробуем его перезаписать.
 		fileBytes, err := io.ReadAll(file)
 		if err != nil {

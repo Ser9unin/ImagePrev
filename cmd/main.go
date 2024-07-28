@@ -7,11 +7,11 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/Ser9unin/ImagePrev/internal/app"
-	"github.com/Ser9unin/ImagePrev/internal/cache"
-	"github.com/Ser9unin/ImagePrev/internal/config"
-	"github.com/Ser9unin/ImagePrev/internal/logger"
-	"github.com/Ser9unin/ImagePrev/internal/server"
+	"github.com/Ser9unin/ImagePrev/internal/app"    //nolint:depguard
+	"github.com/Ser9unin/ImagePrev/internal/cache"  //nolint:depguard
+	"github.com/Ser9unin/ImagePrev/internal/config" //nolint:depguard
+	"github.com/Ser9unin/ImagePrev/internal/logger" //nolint:depguard
+	"github.com/Ser9unin/ImagePrev/internal/server" //nolint:depguard
 	"golang.org/x/sync/errgroup"
 )
 
