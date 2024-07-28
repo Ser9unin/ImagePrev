@@ -14,6 +14,9 @@ linters-settings:
      - github.com/stretchr/testify
      files:
      - "**/internal/**/*.go"
+    internal:
+     allow:
+     - github.com/Ser9unin/ImagePrev/internal/config
 
 linters:
   disable-all: true
