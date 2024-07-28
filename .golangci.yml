@@ -9,12 +9,11 @@ linters-settings:
    rules:
     main:
      allow:
-      - github.com/stretchr/testify/suite
-      - github.com/Ser9unin/ImagePrev/internal/app
-      - github.com/Ser9unin/ImagePrev/internal/cache
-      - github.com/Ser9unin/ImagePrev/internal/config
-      - github.com/Ser9unin/ImagePrev/internal/logger
-      - github.com/Ser9unin/ImagePrev/internal/server
+     - $gostd
+     - github.com/disintegration/imaging
+     - github.com/stretchr/testify
+     files:
+     - "**/internal/**/*.go"
 
 linters:
   disable-all: true
