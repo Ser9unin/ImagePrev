@@ -8,15 +8,14 @@ linters-settings:
   depguard:
    rules:
     main:
-     allow:
-     - $gostd
-     - github.com/disintegration/imaging
-     - github.com/stretchr/testify
      files:
      - "**/internal/**/*.go"
-    internal:
      allow:
+     - $gostd
+     - github.com/stretchr/testify
+     - github.com/disintegration/imaging
      - github.com/Ser9unin/ImagePrev/internal/config
+
 
 linters:
   disable-all: true

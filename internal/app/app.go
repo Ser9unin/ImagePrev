@@ -29,6 +29,7 @@ type Cache interface {
 	Get(key string) (interface{}, bool)
 	Clear()
 }
+
 type Logger interface {
 	Info(msg string)
 	Error(msg string)
@@ -59,7 +60,6 @@ func (app *App) Fill(byteImg []byte, paramsStr string) ([]byte, error) {
 	}
 
 	rawJpeg := bytes.NewReader(byteImg)
-
 	srcImage, err := jpeg.Decode(rawJpeg)
 	if err != nil {
 		// при этой ошибке не всегда есть реальная проблема, повторная попытка декодирования помогает
@@ -81,8 +81,8 @@ func (app *App) Fill(byteImg []byte, paramsStr string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	app.logger.Info(fmt.Sprintf("saving file on disk: %s", filename))
+
 	// кэшуруем файлы на диске
 	err = fileStorage(bytesResponse, filename)
 	// если файл сохранить не удалесь, возвращаем клиенту картинку,
@@ -138,9 +138,7 @@ func fileStorage(bytesResponse bytes.Buffer, filename string) error {
 		}
 		log.Println("Папка создана успешно")
 	}
-
 	filePath := storagePath + filename
-
 	err = saveFileOnDisk(bytesResponse.Bytes(), filePath)
 	if err != nil {
 		return err
@@ -189,7 +187,6 @@ func (app *App) FetchExternalData(targetReq *http.Request) ([]byte, int, error) 
 	}
 
 	client := &http.Client{Transport: transport}
-
 	targetResp, err := client.Do(targetReq)
 	if err != nil {
 		app.logger.Error(err.Error())
@@ -222,10 +219,10 @@ func (app *App) FetchExternalData(targetReq *http.Request) ([]byte, int, error) 
 	if !strings.HasPrefix(contentType, "image/jpeg") {
 		return nil, http.StatusUnsupportedMediaType, fmt.Errorf("not a JPEG image")
 	}
-	app.logger.Info("JPEG image receiving")
 
 	// скачиваем ответ через буфер, что бы не получить слишком большой файл
 	//  и прекратить чтение при превышении лимита 100 мегабайт
+	app.logger.Info("JPEG image receiving")
 	result, status, err := app.responseBufferReader(targetResp.Body)
 	if err != nil {
 		return nil, status, err
@@ -239,16 +236,12 @@ func (app *App) FetchExternalData(targetReq *http.Request) ([]byte, int, error) 
 // Если лимит превышен возвращает то, что было вычитано и ошибку.
 func (app *App) responseBufferReader(targetBody io.ReadCloser) ([]byte, int, error) {
 	reader := bufio.NewReader(targetBody)
-
 	result := make([]byte, 0, 104857600)
 	buffer := bytes.NewBuffer(result)
-
 	// лимит 100 мегабайт, маловероятно что jpeg будет весить больше,
 	// если будет превышение возможно там не jpeg замаскированный под jpeg.
 	var limitBytes int64 = 104857600
-
 	bytesRead, err := io.CopyN(buffer, reader, 104857600)
-
 	if errors.Is(err, io.EOF) {
 		result = buffer.Bytes()
 		app.logger.Info(fmt.Sprintf("Received %d bytes", len(result)))
@@ -261,6 +254,5 @@ func (app *App) responseBufferReader(targetBody io.ReadCloser) ([]byte, int, err
 		app.logger.Info(fmt.Sprintf("Received %d bytes", len(result)))
 		return nil, http.StatusNotFound, fmt.Errorf("error reading request body: %w", err)
 	}
-
 	return result, http.StatusOK, nil
 }
