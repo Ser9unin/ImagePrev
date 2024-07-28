@@ -43,7 +43,7 @@ func ErrorJSON(w http.ResponseWriter, r *http.Request, httpStatusCode int, err e
 	responseJSON(w, r, httpStatusCode, JSONMap{"error": err.Error(), "details": details})
 }
 
-// NoContent отправляет ответ что контента нет
+// NoContent отправляет ответ что контента нет.
 func NoContent(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -53,7 +53,7 @@ var (
 	ErrInternalServerError = errors.New("internal server error")
 )
 
-// StatusCode получает http статус из ошибки
+// StatusCode получает http статус из ошибки.
 func StatusCode(err error) int {
 	if errors.Is(err, ErrNotFound) {
 		return http.StatusNotFound

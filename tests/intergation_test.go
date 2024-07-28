@@ -27,7 +27,7 @@ func (ts *TestSuite) sendRequest(width, height int, targetURL string) (*http.Res
 	return http.DefaultClient.Do(req)
 }
 
-// удаленный сервер вернул изображение;
+// удаленный сервер вернул изображение.
 func (ts *TestSuite) TestServerOK() {
 	// в запросе сохраняю изображение без изменений и сравниваю ответ от сервера с исходником
 	res, err := ts.sendRequest(1366, 768, "/nginx/testdata/beaver_cute.jpg")
@@ -45,7 +45,7 @@ func (ts *TestSuite) TestServerOK() {
 	ts.Require().Equal(val, "1")
 }
 
-// картинка найдена в кэше;
+// картинка найдена в кэше.
 func (ts *TestSuite) TestImageInCache() {
 	// делаю первый запрос на сервер с изменением размера изображения
 	resFromServer, err := ts.sendRequest(640, 480, "/nginx/testdata/beaver_cute.jpg")
@@ -76,7 +76,7 @@ func (ts *TestSuite) TestImageInCache() {
 	ts.Require().Equal(val, "1")
 }
 
-// удаленный сервер не существует;
+// удаленный сервер не существует.
 func (ts *TestSuite) TestBadGateway() {
 	res, err := ts.sendRequest(1366, 768, "/badgateway/testdata/my_marmot.jpg")
 	defer func() {
@@ -94,7 +94,7 @@ func (ts *TestSuite) TestBadGateway() {
 	ts.Require().Equal(bodyString, `{"details":"fail fetch data request","error":"error sending request"}`)
 }
 
-// удаленный сервер существует, но изображение не найдено (404 Not Found);
+// удаленный сервер существует, но изображение не найдено (404 Not Found).
 func (ts *TestSuite) TestImageNotFound() {
 	res, err := ts.sendRequest(1366, 768, "/nginx/testdata/my_bober.jpg")
 	defer func() {
@@ -113,7 +113,7 @@ func (ts *TestSuite) TestImageNotFound() {
 	ts.Require().Equal(bodyString, `{"details":"fail fetch data request","error":"content not found"}`)
 }
 
-// удаленный сервер существует, но изображение не изображение, а скажем, exe-файл;
+// удаленный сервер существует, но изображение не изображение, а скажем, exe-файл.
 func (ts *TestSuite) TestInvalidMediaType() {
 	res, err := ts.sendRequest(1366, 768, "/nginx/testdata/this_is_text.txt")
 	defer func() {
@@ -131,12 +131,7 @@ func (ts *TestSuite) TestInvalidMediaType() {
 	ts.Require().Equal(bodyString, `{"details":"fail fetch data request","error":"not a JPEG image"}`)
 }
 
-// // удаленный сервер вернул ошибку;
-// func (ts *TestSuite) TestServerError() {
-
-// }
-
-// изображение меньше, чем нужный размер;
+// изображение меньше, чем нужный размер.
 func (ts *TestSuite) TestSize() {
 	res, err := ts.sendRequest(0, 0, "/nginx/testdata/my_marmot.jpg")
 	defer func() {
