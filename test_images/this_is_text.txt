@@ -1,0 +1,1 @@
+This is text instead of image, server should return "Invalid media type"

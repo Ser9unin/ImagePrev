@@ -1,0 +1,16 @@
+services:
+  image-previewer:
+    build:
+     context: ../.
+     dockerfile: ./build/dockerfile
+    container_name: image_previewer
+    ports:
+       - "8000:8000"
+    restart: unless-stopped
+    env_file: ../.env
+    networks:
+      - app-network
+
+networks:
+ app-network:
+  driver: bridge
