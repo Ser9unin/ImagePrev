@@ -1,0 +1,43 @@
+services:
+   image-previewer:
+     build:
+       context: ../
+       dockerfile: ./build/dockerfile
+     container_name: image-previewer
+     restart: unless-stopped
+     ports:
+     - "8000:80"
+     env_file: ../.env
+     networks:
+     - app
+
+   nginx:
+     image: nginx:latest
+     container_name: nginx
+     ports:
+     - "80:80"
+     environment:      
+     - NGINX_PORT=80
+     volumes:
+     - ../build/tmpl:/etc/nginx/templates
+     - ../test_images:/usr/share/nginx/html/testdata
+     networks:
+     - app
+
+   tests:
+     image: golang:1.22.5-alpine3.20
+     volumes:
+     - ./../:/app/
+     working_dir: /app
+     command: sh -c 'go test -v ./tests/...'
+     environment:
+      CGO_ENABLED: 0
+     depends_on:
+     - image-previewer
+     - nginx
+     networks:
+     - app
+
+networks:
+  app:
+   driver: bridge
