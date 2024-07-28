@@ -11,6 +11,7 @@ down:
 
 test:
 	pwd
+	ls -a
 	go test -race -count 10 ./internal/...
 
 integration-tests:
