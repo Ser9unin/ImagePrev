@@ -21,16 +21,24 @@ type CacheCfg struct {
 }
 
 func New() Config {
+	Host := os.Getenv("HOST")
+	if Host == "" {
+		Host = "localhost"
+	}
+	Port := os.Getenv("PORT")
+	if Port == "" {
+		Port = ":8000"
+	}
 	server := SrvCfg{
-		Host: os.Getenv("HOST"),
-		Port: os.Getenv("PORT"),
+		Host: Host,
+		Port: Port,
 	}
 
 	cacheCapStr := os.Getenv("CACHE_CAPACITY")
 	cacheCapInt, err := strconv.Atoi(cacheCapStr)
 	if err != nil {
-		log.Println("can't get cache cap, set to default = 1")
-		cacheCapInt = 1
+		cacheCapInt = 3
+		log.Printf("can't get cache cap, set to default = %d \n", cacheCapInt)
 	}
 
 	cache := CacheCfg{

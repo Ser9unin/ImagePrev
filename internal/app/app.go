@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"image/jpeg"
 	"io"
+	"log"
 	"net/http"
 	"os"
 	"strconv"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/disintegration/imaging"
 )
+
+var storagePath = "./internal/storage/"
 
 type App struct {
 	cache  Cache
@@ -29,6 +32,10 @@ type Logger interface {
 	Error(msg string)
 	Debug(msg string)
 	Warn(msg string)
+}
+
+func New(cache Cache, logger Logger) *App {
+	return &App{cache: cache, logger: logger}
 }
 
 func (app *App) Set(key string, value interface{}) bool {
@@ -49,19 +56,23 @@ func (app *App) Fill(byteImg []byte, paramsStr string) ([]byte, error) {
 		return nil, err
 	}
 
-	// в cache Key пишем строку с параметрами и адресом исходного запроса
-	// в формате fill/width/height/jpegSource.com/sourceFileName.jpg
-	// в cache Value пишем имя файла, с которым он буде храниться на диске
-	// в формате width_height_sourceFileName.jpg
-	app.cache.Set(paramsStr, filename)
-	app.logger.Info(fmt.Sprintf("set cache file: %s", filename))
+	rawJpeg := bytes.NewReader(byteImg)
 
-	srcImage, err := jpeg.Decode(bytes.NewReader(byteImg))
+	srcImage, err := jpeg.Decode(rawJpeg)
 	if err != nil {
-		return nil, err
+		// при этой ошибке не всегда есть реальная проблема, повторная попытка декодирования помогает
+		if err.Error() == "invalid JPEG format: too many coefficients" {
+			srcImage, err = jpeg.Decode(rawJpeg)
+			app.logger.Info(err.Error())
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 
-	dstImage := imaging.Fill(srcImage, width, height, imaging.Center, imaging.Lanczos)
+	dstImage := imaging.Fit(srcImage, width, height, imaging.Lanczos)
 
 	var bytesResponse bytes.Buffer
 	err = jpeg.Encode(&bytesResponse, dstImage, nil)
@@ -80,6 +91,13 @@ func (app *App) Fill(byteImg []byte, paramsStr string) ([]byte, error) {
 	}
 	app.logger.Info(fmt.Sprintf("file saved disk: %s", filename))
 
+	// в cache Key пишем строку с параметрами и адресом исходного запроса
+	// в формате fill/width/height/jpegSource.com/sourceFileName.jpg
+	// в cache Value пишем имя файла, с которым он буде храниться на диске
+	// в формате width_height_sourceFileName.jpg
+	app.cache.Set(paramsStr, filename)
+	app.logger.Info(fmt.Sprintf("set cache file: %s", filename))
+
 	// клиенту возвращаем jpeg в виде байт
 	return bytesResponse.Bytes(), nil
 }
@@ -89,24 +107,39 @@ func (app *App) Fill(byteImg []byte, paramsStr string) ([]byte, error) {
 // в формате width_height_sourceFileName.jpg
 func parseParams(paramsStr string) (width, height int, fileName string, err error) {
 	splitParams := strings.Split(paramsStr, "/")
-	width, err = strconv.Atoi(splitParams[1])
+	if len(splitParams) < 4 {
+		return 0, 0, "", fmt.Errorf("not enough params")
+	}
+	width, err = strconv.Atoi(splitParams[2])
 	if err != nil {
 		return 0, 0, "", fmt.Errorf("wrong width data: %s", err)
 	}
-	height, err = strconv.Atoi(splitParams[2])
+	height, err = strconv.Atoi(splitParams[3])
 	if err != nil {
 		return 0, 0, "", fmt.Errorf("wrong height data: %s", err)
 	}
-
+	if width < 1 || height < 1 {
+		return 0, 0, "", fmt.Errorf("width or height less than 1")
+	}
 	sLen := len(splitParams) - 1
-	fileName = splitParams[1] + "_" + splitParams[2] + "_" + splitParams[sLen]
-
+	fileName = splitParams[2] + "x" + splitParams[3] + "_" + splitParams[sLen]
 	return width, height, fileName, nil
 }
 
 func fileStorage(bytesResponse bytes.Buffer, filename string) error {
-	// проверяем есть лм файл с таким названием на диске
-	file, err := os.Open("../storage/" + filename)
+	_, err := os.Stat(storagePath)
+	if err == nil {
+		log.Println("Папка уже существует")
+	} else if os.IsNotExist(err) {
+		log.Println("Папки не существует, создаём...")
+		err := os.Mkdir(storagePath, os.ModePerm)
+		if err != nil {
+			return fmt.Errorf("ошибка создания папки: %s", err)
+		}
+		log.Println("Папка создана успешно")
+	}
+	// проверяем есть ли файл с таким названием на диске
+	file, err := os.Open(storagePath + filename)
 	if err != nil {
 		// если такого файла нет, создаём новый
 		err = saveFileOnDisk(bytesResponse.Bytes(), filename)
@@ -128,6 +161,7 @@ func fileStorage(bytesResponse bytes.Buffer, filename string) error {
 		ok := bytes.Equal(fileBytes, bytesResponse.Bytes())
 		if !ok {
 			// если байты не совпадают, перезаписываем файл
+			log.Println("file on disk different from external source")
 			err = saveFileOnDisk(bytesResponse.Bytes(), filename)
 			if err != nil {
 				return err
@@ -141,7 +175,7 @@ func fileStorage(bytesResponse bytes.Buffer, filename string) error {
 }
 
 func saveFileOnDisk(fileBytes []byte, filename string) error {
-	file, err := os.Create("../storage/" + filename)
+	file, err := os.Create(storagePath + filename)
 	if err != nil {
 		return fmt.Errorf("can't create file: %s", err)
 	}
@@ -158,34 +192,49 @@ func saveFileOnDisk(fileBytes []byte, filename string) error {
 // ProxyRequest проксирует header исходного запроса к источнику откуда будет скачиваться изображение,
 // запускает скачивание файла от внешнего сервиса
 // (вероятно скачивание правильнее выделить в отдельную функцию, а от ProxyRequest забрать только header)
-func (app *App) ProxyRequest(targetUrl string, initHeaders http.Header) ([]byte, int, error) {
+func (app *App) ProxyHeader(targetUrl string, initHeader http.Header) (*http.Request, int, error) {
 	// Создаем новый запрос к целевому сервису
-	targetReq, err := http.NewRequest(http.MethodGet, targetUrl, nil)
+	targetUrlhttps := "https://" + targetUrl
+	targetReq, err := http.NewRequest(http.MethodGet, targetUrlhttps, nil)
+	app.logger.Info(targetUrlhttps)
 	if err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("error creating request")
+		return nil, http.StatusInternalServerError, fmt.Errorf("error creating request: %s", err)
 	}
 
 	// Копируем все заголовки из исходного запроса в новый
-	for name, values := range initHeaders {
+	for name, values := range initHeader {
 		for _, value := range values {
 			targetReq.Header.Add(name, value)
 		}
 	}
+	return targetReq, http.StatusOK, nil
+}
 
+func (app *App) FetchExternalData(targetReq *http.Request) ([]byte, int, error) {
 	// Отправляем запрос и обрабатываем ответ
-	targetResp, err := http.DefaultClient.Do(targetReq)
+	transport := &http.Transport{
+		DisableKeepAlives: false,
+	}
+
+	client := &http.Client{Transport: transport}
+
+	targetResp, err := client.Do(targetReq)
 	if err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("error sending request")
+		app.logger.Error(err.Error())
+		app.logger.Info(targetReq.RequestURI)
+		targetReq.URL.Scheme = "http"
+		targetResp, err = client.Do(targetReq)
+		if err != nil {
+			app.logger.Error(fmt.Sprintf("Status %d, %s", http.StatusBadGateway, err.Error()))
+			return nil, http.StatusBadGateway, fmt.Errorf("error sending request")
+		}
 	}
 	defer targetResp.Body.Close()
 
-	// КАЖЕТСЯ ЭТОТ КУСОК НЕ НУЖЕН, ПРОКСИРУЕМ ТОЛЬКО ЗАГОЛОВКИ ИСХОДНОГО ЗАПРОСА
-	// // Копируем заголовки ответа в исходный запрос
-	// for name, values := range targetResp.Header {
-	// 	for _, value := range values {
-	// 		initHeaders.Add(name, value)
-	// 	}
-	// }
+	// Проверяем, что внешний сервис не ответил 404
+	if targetResp.StatusCode == http.StatusNotFound {
+		return nil, targetResp.StatusCode, fmt.Errorf("content not found")
+	}
 
 	// Проверяем, что внешний сервис отправляет jpeg, если да, то читаем его через буфер.
 	contentType := targetResp.Header.Get("Content-Type")
@@ -194,12 +243,12 @@ func (app *App) ProxyRequest(targetUrl string, initHeaders http.Header) ([]byte,
 
 		// скачиваем ответ через буфер, что бы не получить слишком большой файл
 		//  и прекратить чтение при превышении лимита 100 мегабайт
-		data, status, err := app.responseBufferReader(targetResp.Body)
+		result, status, err := app.responseBufferReader(targetResp.Body)
 		if err != nil {
 			return nil, status, err
 		} else {
 			app.logger.Info("JPEG image received")
-			return data, status, nil
+			return result, http.StatusOK, nil
 		}
 	} else {
 		return nil, http.StatusUnsupportedMediaType, fmt.Errorf("not a JPEG image")
@@ -211,24 +260,28 @@ func (app *App) ProxyRequest(targetUrl string, initHeaders http.Header) ([]byte,
 // Если лимит превышен возвращает то, что было вычитано и ошибку.
 func (app *App) responseBufferReader(targetBody io.ReadCloser) ([]byte, int, error) {
 	reader := bufio.NewReader(targetBody)
-	buffer := make([]byte, 1024)
+
+	result := make([]byte, 0, 104857600)
+	buffer := bytes.NewBuffer(result)
 
 	// лимит 100 мегабайт, маловероятно что jpeg будет весить больше,
 	// если будет превышение возможно там не jpeg замаскированный под jpeg.
-	limitBytes := 104857600
-	bytesRead := 0
-	var err error
-	for {
-		bytesRead, err = reader.Read(buffer)
-		if err == io.EOF {
-			break
-		} else if err != nil {
-			return nil, http.StatusNotFound, fmt.Errorf("error reading request body: %w", err)
-		}
+	var limitBytes int64 = 104857600
+
+	bytesRead, err := io.CopyN(buffer, reader, 104857600)
+
+	if err == io.EOF {
+		result = buffer.Bytes()
+		app.logger.Info(fmt.Sprintf("Received %d bytes", len(result)))
+	} else if err != nil {
 		if bytesRead > limitBytes {
-			return buffer, http.StatusRequestEntityTooLarge, fmt.Errorf("data exceed limit")
+			app.logger.Info(fmt.Sprintf("Received %d bytes", len(result)))
+			result = buffer.Bytes()
+			return result, http.StatusRequestEntityTooLarge, fmt.Errorf("data exceed limit")
 		}
-		app.logger.Info(fmt.Sprintf("Received %d bytes", bytesRead))
+		app.logger.Info(fmt.Sprintf("Received %d bytes", len(result)))
+		return nil, http.StatusNotFound, fmt.Errorf("error reading request body: %w", err)
 	}
-	return buffer, http.StatusOK, nil
+
+	return result, http.StatusOK, nil
 }

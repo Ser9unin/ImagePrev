@@ -2,7 +2,9 @@ package server
 
 import (
 	"context"
+	"log"
 	"net/http"
+	"os"
 
 	"github.com/Ser9unin/ImagePrev/internal/config"
 )
@@ -26,21 +28,23 @@ type App interface {
 	Get(key string) (interface{}, bool)
 	Clear()
 	Fill(byteImg []byte, paramsStr string) ([]byte, error)
-	ProxyRequest(url string, headers http.Header) ([]byte, int, error)
+	ProxyHeader(url string, headers http.Header) (*http.Request, int, error)
+	FetchExternalData(targetReq *http.Request) ([]byte, int, error)
 }
 
-func (s *Server) NewServer(cfg config.Config, app App, logger Logger) *Server {
-	router := s.NewRouter(app, logger)
+func NewServer(cfg config.Config, app App, logger Logger) *Server {
+	router := NewRouter(app, logger)
 
 	srv := &http.Server{
-		Addr:    cfg.Server.Port,
+
+		Addr:    cfg.Server.Host + cfg.Server.Port,
 		Handler: router,
 	}
 
 	return &Server{srv, router, app, logger}
 }
 
-func (s *Server) NewRouter(app App, logger Logger) *http.ServeMux {
+func NewRouter(app App, logger Logger) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mw := func(next http.HandlerFunc) http.HandlerFunc {
@@ -60,5 +64,9 @@ func (s *Server) Run(ctx context.Context) error {
 }
 
 func (s *Server) Stop(ctx context.Context) error {
+	err := os.RemoveAll("./internal/storage/")
+	if err != nil {
+		log.Println("Ошибка при удалении папки:", err)
+	}
 	return s.srv.Shutdown(ctx)
 }

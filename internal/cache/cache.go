@@ -9,8 +9,8 @@ import (
 type Key string
 
 type Cache interface {
-	Set(key Key, value interface{}) bool
-	Get(key Key) (interface{}, bool)
+	Set(key string, value interface{}) bool
+	Get(key string) (interface{}, bool)
 	Clear()
 }
 
@@ -18,11 +18,11 @@ type lruCache struct {
 	goroutineLock sync.Mutex
 	capacity      config.CacheCfg
 	queue         List
-	items         map[Key]*ListItem
+	items         map[string]*ListItem
 }
 
 type cacheItem struct {
-	key Key
+	key string
 	val interface{}
 }
 
@@ -34,11 +34,11 @@ func NewCache(capacity config.CacheCfg) Cache {
 	return &lruCache{
 		capacity: capacity,
 		queue:    NewList(),
-		items:    make(map[Key]*ListItem, capacityInt),
+		items:    make(map[string]*ListItem, capacityInt),
 	}
 }
 
-func (l *lruCache) Set(key Key, value interface{}) bool {
+func (l *lruCache) Set(key string, value interface{}) bool {
 	l.goroutineLock.Lock()
 	defer l.goroutineLock.Unlock()
 
@@ -58,7 +58,7 @@ func (l *lruCache) Set(key Key, value interface{}) bool {
 	return keyInCache
 }
 
-func (l *lruCache) Get(key Key) (interface{}, bool) {
+func (l *lruCache) Get(key string) (interface{}, bool) {
 	l.goroutineLock.Lock()
 	defer l.goroutineLock.Unlock()
 
@@ -79,5 +79,5 @@ func (l *lruCache) Clear() {
 	defer l.goroutineLock.Unlock()
 
 	l.queue = NewList()
-	l.items = make(map[Key]*ListItem, l.capacity.Capacity)
+	l.items = make(map[string]*ListItem, l.capacity.Capacity)
 }
