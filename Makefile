@@ -10,14 +10,13 @@ down:
 	docker compose -f deploy/docker-compose.yaml down
 
 test:
-	go env -w CGO_ENABLED=1
 	go test -race -count 100 ./internal/...
 
 integration-tests:
 	set -e ;\
 	docker-compose -f deploy/docker-compose-test.yaml -p integration_test up --build -d ;\
 	test_status_code=0 ;\
-	docker-compose -f deploy/docker-compose-test.yaml run integration_test go test -v -mod=readonly -tags integration ./tests/... || test_status_code=$$? ;\
+	docker-compose -f deploy/docker-compose-test.yaml run integration_test || test_status_code=$$? ;\
 	docker-compose -f deploy/docker-compose-test.yaml down ;\
 	exit $$test_status_code ;
 
