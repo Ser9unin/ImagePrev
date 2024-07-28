@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/Ser9unin/ImagePrev/internal/config"
 )
@@ -36,9 +37,12 @@ func NewServer(cfg config.Config, app App, logger Logger) *Server {
 	router := NewRouter(app, logger)
 
 	srv := &http.Server{
-
-		Addr:    cfg.Server.Host + cfg.Server.Port,
-		Handler: router,
+		Addr:              cfg.Server.Host + cfg.Server.Port,
+		Handler:           router,
+		ReadHeaderTimeout: 15 * time.Second, // Настраиваем тайм-аут ожидания заголовков
+		ReadTimeout:       15 * time.Second, // Настраиваем общий тайм-аут запроса
+		WriteTimeout:      10 * time.Second, // Настраиваем тайм-аут записи ответа
+		IdleTimeout:       30 * time.Second, // Настраиваем тайм-аут простоя соединения
 	}
 
 	return &Server{srv, router, app, logger}
@@ -48,7 +52,7 @@ func NewRouter(app App, logger Logger) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	mw := func(next http.HandlerFunc) http.HandlerFunc {
-		return HttpLogger(CheckHttpMethod(next))
+		return HTTPLogger(CheckHTTPMethod(next))
 	}
 
 	a := newAPI(app, logger)
@@ -59,7 +63,7 @@ func NewRouter(app App, logger Logger) *http.ServeMux {
 	return mux
 }
 
-func (s *Server) Run(ctx context.Context) error {
+func (s *Server) Run() error {
 	return s.srv.ListenAndServe()
 }
 

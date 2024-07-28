@@ -35,7 +35,7 @@ func main() {
 
 	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		return server.Run(gCtx)
+		return server.Run()
 	})
 	g.Go(func() error {
 		<-gCtx.Done()

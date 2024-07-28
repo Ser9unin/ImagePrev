@@ -9,7 +9,7 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// statusWriter is custom http.ResponseWriter that captures status and size of response
+// statusWriter is custom http.ResponseWriter that captures status and size of response.
 type statusWriter struct {
 	http.ResponseWriter
 	status int
@@ -30,7 +30,7 @@ func (w *statusWriter) Write(b []byte) (int, error) {
 	return n, err
 }
 
-func HttpLogger(next http.HandlerFunc) http.HandlerFunc {
+func HTTPLogger(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		sw := statusWriter{ResponseWriter: w}
@@ -61,7 +61,7 @@ func HttpLogger(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func CheckHttpMethod(next http.HandlerFunc) http.HandlerFunc {
+func CheckHTTPMethod(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		next(w, r)
 		if r.Method != http.MethodGet {

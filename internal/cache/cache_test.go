@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var cap config.CacheCfg
+var capCache config.CacheCfg
 
 func TestCache(t *testing.T) {
 	t.Run("empty cache", func(t *testing.T) {
-		cap.Capacity = 10
-		c := NewCache(cap)
+		capCache.Capacity = 10
+		c := NewCache(capCache)
 
 		_, ok := c.Get("aaa")
 		require.False(t, ok)
@@ -25,8 +25,8 @@ func TestCache(t *testing.T) {
 	})
 
 	t.Run("simple", func(t *testing.T) {
-		cap.Capacity = 5
-		c := NewCache(cap)
+		capCache.Capacity = 5
+		c := NewCache(capCache)
 
 		wasInCache := c.Set("aaa", 100)
 		require.False(t, wasInCache)
@@ -61,9 +61,9 @@ func TestCache(t *testing.T) {
 
 func TestCacheMultithreading(t *testing.T) {
 	t.Skip() // Remove me if task with asterisk completed.
-	cap.Capacity = 10
+	capCache.Capacity = 10
 
-	c := NewCache(cap)
+	c := NewCache(capCache)
 	wg := &sync.WaitGroup{}
 	wg.Add(2)
 

@@ -21,7 +21,7 @@ func newAPI(app App, logger Logger) api {
 	}
 }
 
-func (a *api) greetings(w http.ResponseWriter, r *http.Request) {
+func (a *api) greetings(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/html")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("<h1>This is my previewer!</h1>"))
@@ -53,7 +53,7 @@ func (a *api) fill(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *api) externalUpload(w http.ResponseWriter, r *http.Request, paramsStr string) {
-	paramsURL := parseTargetUrl(paramsStr)
+	paramsURL := parseTargetURL(paramsStr)
 	targetReq, httpStatus, err := a.app.ProxyHeader(paramsURL, r.Header)
 	if err != nil {
 		a.logger.Error(err.Error())
@@ -76,7 +76,7 @@ func (a *api) externalUpload(w http.ResponseWriter, r *http.Request, paramsStr s
 	responseImage(w, r, httpStatus, response)
 }
 
-func parseTargetUrl(paramsStr string) string {
+func parseTargetURL(paramsStr string) string {
 	splitParams := strings.Split(paramsStr, "/")
 	return strings.Join(splitParams[4:], "/")
 }

@@ -128,7 +128,7 @@ func (ts *TestSuite) TestInvalidMediaType() {
 	bodyString := string(body)
 	bodyString = strings.TrimSuffix(bodyString, "\n")
 	ts.Require().NoError(err)
-	ts.Require().Equal(string(bodyString), `{"details":"fail fetch data request","error":"not a JPEG image"}`)
+	ts.Require().Equal(bodyString, `{"details":"fail fetch data request","error":"not a JPEG image"}`)
 }
 
 // // удаленный сервер вернул ошибку;
@@ -150,7 +150,7 @@ func (ts *TestSuite) TestSize() {
 	bodyString := string(body)
 	bodyString = strings.TrimSuffix(bodyString, "\n")
 	ts.Require().NoError(err)
-	ts.Require().Equal(string(bodyString), `{"details":"fail fetch data","error":"width or height less than 1"}`)
+	ts.Require().Equal(bodyString, `{"details":"fail fetch data","error":"width or height less than 1"}`)
 }
 
 func TestIntegration(t *testing.T) {

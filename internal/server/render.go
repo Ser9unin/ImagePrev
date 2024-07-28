@@ -9,14 +9,14 @@ import (
 )
 
 // responseImage отправляет клиенту изображение в []byte
-func responseImage(w http.ResponseWriter, r *http.Request, status int, data []byte) {
+func responseImage(w http.ResponseWriter, _ *http.Request, status int, data []byte) {
 	w.WriteHeader(status)
 	w.Header().Set("Content-Type", "image/jpeg")
 	w.Write(data)
 }
 
 // responseJSON отправляет ответ в формате json
-func responseJSON(w http.ResponseWriter, r *http.Request, status int, v interface{}) {
+func responseJSON(w http.ResponseWriter, _ *http.Request, status int, v interface{}) {
 	buf := &bytes.Buffer{}
 	enc := json.NewEncoder(buf)
 	enc.SetEscapeHTML(true)

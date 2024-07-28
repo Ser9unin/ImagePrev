@@ -94,7 +94,7 @@ func (app *App) Fill(byteImg []byte, paramsStr string) ([]byte, error) {
 	// в cache Key пишем строку с параметрами и адресом исходного запроса
 	// в формате fill/width/height/jpegSource.com/sourceFileName.jpg
 	// в cache Value пишем имя файла, с которым он буде храниться на диске
-	// в формате width_height_sourceFileName.jpg
+	// в формате width_height_sourceFileName.jpg.
 	app.cache.Set(paramsStr, filename)
 	app.logger.Info(fmt.Sprintf("set cache file: %s", filename))
 
@@ -104,7 +104,7 @@ func (app *App) Fill(byteImg []byte, paramsStr string) ([]byte, error) {
 
 // parseParams достаёт из запроса данные о ширине и высоте, до которых нужно изменить размер,
 // а так же имя файла, с которым тот будет сохранен на диске
-// в формате width_height_sourceFileName.jpg
+// в формате width_height_sourceFileName.jpg.
 func parseParams(paramsStr string) (width, height int, fileName string, err error) {
 	splitParams := strings.Split(paramsStr, "/")
 	if len(splitParams) < 4 {
@@ -112,11 +112,11 @@ func parseParams(paramsStr string) (width, height int, fileName string, err erro
 	}
 	width, err = strconv.Atoi(splitParams[2])
 	if err != nil {
-		return 0, 0, "", fmt.Errorf("wrong width data: %s", err)
+		return 0, 0, "", fmt.Errorf("wrong width data: %w", err)
 	}
 	height, err = strconv.Atoi(splitParams[3])
 	if err != nil {
-		return 0, 0, "", fmt.Errorf("wrong height data: %s", err)
+		return 0, 0, "", fmt.Errorf("wrong height data: %w", err)
 	}
 	if width < 1 || height < 1 {
 		return 0, 0, "", fmt.Errorf("width or height less than 1")
@@ -134,7 +134,7 @@ func fileStorage(bytesResponse bytes.Buffer, filename string) error {
 		log.Println("Папки не существует, создаём...")
 		err := os.Mkdir(storagePath, os.ModePerm)
 		if err != nil {
-			return fmt.Errorf("ошибка создания папки: %s", err)
+			return fmt.Errorf("ошибка создания папки: %w", err)
 		}
 		log.Println("Папка создана успешно")
 	}
@@ -146,7 +146,6 @@ func fileStorage(bytesResponse bytes.Buffer, filename string) error {
 		if err != nil {
 			return err
 		}
-		return nil
 	} else {
 		// если есть файл с таким названием, то сравниваем байты файла на диске с байтами,
 		// которые у нас получились после изменения размера изображения
@@ -158,6 +157,7 @@ func fileStorage(bytesResponse bytes.Buffer, filename string) error {
 				return err
 			}
 		}
+
 		ok := bytes.Equal(fileBytes, bytesResponse.Bytes())
 		if !ok {
 			// если байты не совпадают, перезаписываем файл
@@ -170,35 +170,33 @@ func fileStorage(bytesResponse bytes.Buffer, filename string) error {
 			// если байты совпадают, закрываем файл
 			file.Close()
 		}
-		return nil
 	}
+	return nil
 }
 
 func saveFileOnDisk(fileBytes []byte, filename string) error {
 	file, err := os.Create(storagePath + filename)
 	if err != nil {
-		return fmt.Errorf("can't create file: %s", err)
+		return fmt.Errorf("can't create file: %w", err)
 	}
 	// записываем jpeg с новыми размерами
 	_, err = file.Write(fileBytes)
 	if err != nil {
-		return fmt.Errorf("can't create file: %s", err)
+		return fmt.Errorf("can't create file: %w", err)
 	}
 	// закрываем файл после использования
 	defer file.Close()
 	return nil
 }
 
-// ProxyRequest проксирует header исходного запроса к источнику откуда будет скачиваться изображение,
-// запускает скачивание файла от внешнего сервиса
-// (вероятно скачивание правильнее выделить в отдельную функцию, а от ProxyRequest забрать только header)
-func (app *App) ProxyHeader(targetUrl string, initHeader http.Header) (*http.Request, int, error) {
+// ProxyRequest проксирует header исходного запроса к источнику откуда будет скачиваться изображение.
+func (app *App) ProxyHeader(targetURL string, initHeader http.Header) (*http.Request, int, error) {
 	// Создаем новый запрос к целевому сервису
-	targetUrlhttps := "https://" + targetUrl
+	targetUrlhttps := "https://" + targetURL
 	targetReq, err := http.NewRequest(http.MethodGet, targetUrlhttps, nil)
 	app.logger.Info(targetUrlhttps)
 	if err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("error creating request: %s", err)
+		return nil, http.StatusInternalServerError, fmt.Errorf("error creating request: %w", err)
 	}
 
 	// Копируем все заголовки из исходного запроса в новый
@@ -238,6 +236,7 @@ func (app *App) FetchExternalData(targetReq *http.Request) ([]byte, int, error) 
 
 	// Проверяем, что внешний сервис отправляет jpeg, если да, то читаем его через буфер.
 	contentType := targetResp.Header.Get("Content-Type")
+
 	if strings.HasPrefix(contentType, "image/jpeg") {
 		app.logger.Info("JPEG image receiving")
 
@@ -246,10 +245,9 @@ func (app *App) FetchExternalData(targetReq *http.Request) ([]byte, int, error) 
 		result, status, err := app.responseBufferReader(targetResp.Body)
 		if err != nil {
 			return nil, status, err
-		} else {
-			app.logger.Info("JPEG image received")
-			return result, http.StatusOK, nil
 		}
+		app.logger.Info("JPEG image received")
+		return result, http.StatusOK, nil
 	} else {
 		return nil, http.StatusUnsupportedMediaType, fmt.Errorf("not a JPEG image")
 	}
